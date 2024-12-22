@@ -1,0 +1,26 @@
+# IDE specific files
+.idea/
+.vscode/
+
+# Build tool specific files
+.bloop/
+.bsp/
+.mdoc/
+.metals/
+.sbt-shuwari/
+metals.sbt
+
+# Node.js specific files
+node_modules/
+
+# PowerShell specific files
+PowerShell*/
+
+# Build output directories
+target/
+
+# SBT scripted test project files
+**/src/sbt-test/**/build.properties
+
+# Miscellaneous
+null/
