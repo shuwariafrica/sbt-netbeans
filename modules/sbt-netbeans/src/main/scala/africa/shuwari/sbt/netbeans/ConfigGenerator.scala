@@ -23,6 +23,8 @@ import sbt.io.IO
 object ConfigGenerator {
 
   def generate(name: String,
+               javacTargetLevel: String,
+               javacSourceLevel: String,
                baseDirectory: File,
                netbeansTargetDirectory: File,
                sourceDirectories: Seq[File],
@@ -32,13 +34,25 @@ object ConfigGenerator {
     val netbeansPropertiesFileTarget = configTarget / "project.properties"
     val netbeansDescriptorFileTarget = configTarget / "project.xml"
     IO.createDirectory(configTarget)
-    IO.write(netbeansPropertiesFileTarget,
-             generateProperties(baseDirectory, netbeansTargetDirectory, sourceDirectories, managedJars, unmanagedJars))
+    IO.write(
+      netbeansPropertiesFileTarget,
+      generateProperties(name,
+                         baseDirectory,
+                         javacTargetLevel,
+                         javacSourceLevel,
+                         netbeansTargetDirectory,
+                         sourceDirectories,
+                         managedJars,
+                         unmanagedJars)
+    )
     IO.write(netbeansDescriptorFileTarget, generateDescriptor(name, sourceDirectories))
     List(netbeansPropertiesFileTarget, netbeansDescriptorFileTarget)
   }
 
-  private def generateProperties(baseDirectory: File,
+  private def generateProperties(name: String,
+                                 baseDirectory: File,
+                                 javacTargetLevel: String,
+                                 javacSourceLevel: String,
                                  netbeansTargetDirectory: File,
                                  sourceDirectories: Seq[File],
                                  managedJars: Seq[File],
@@ -58,16 +72,20 @@ object ConfigGenerator {
       .map(file => s"${fileReferenceName(file)}=${relativize(baseDirectory, file)}")
       .mkString("\n")
 
+    val netbeansTarget = relativize(baseDirectory, netbeansTargetDirectory)
+
     s"""
        |annotation.processing.enabled=true
        |annotation.processing.enabled.in.editor=false
-       |annotation.processing.processor.options=
        |annotation.processing.processors.list=
        |annotation.processing.run.all.processors=true
        |annotation.processing.source.output=$${build.generated.sources.dir}/ap-source-output
+       |application.title=$name
+       |application.vendor=$name
+       |endorsed.classpath=
        |jar.compress=false
        |
-       |build.dir=${relativize(baseDirectory, netbeansTargetDirectory)}/build
+       |build.dir=$netbeansTarget/build
        |build.classes.dir=$${build.dir}/classes
        |build.classes.excludes=**/*.java,**/*.form
        |build.generated.dir=$${build.dir}/generated
@@ -76,7 +94,10 @@ object ConfigGenerator {
        |build.test.classes.dir=$${build.dir}/test/classes
        |build.test.results.dir=$${build.dir}/test/results
        |
-       |dist.dir=$${build.dir}/dist
+       |dist.dir=$netbeansTarget/dist
+       |dist.jar=$${dist.dir}/$name.jar
+       |dist.javadoc.dir=$${dist.dir}/javadoc
+       |dist.archive.excludes=
        |
        |mkdist.disabled=false
        |
@@ -96,11 +117,39 @@ object ConfigGenerator {
        |
        |$sourceReferences
        |
+       |javac.source=$javacSourceLevel
+       |javac.target=$javacTargetLevel
+       |javac.deprecation=false
+       |javac.external.vm=true
+       |javac.modulepath=
+       |javac.processormodulepath=
+       |javac.processorpath=\\
+       |  $${javac.classpath}
+       |javac.test.classpath=
+       |javac.test.modulepath=
+       |
+       |javadoc.author=false
+       |javadoc.html5=false
+       |javadoc.noindex=true
+       |javadoc.nonavbar=true
+       |javadoc.notree=true
+       |javadoc.private=false
+       |javadoc.splitindex=false
+       |javadoc.use=false
+       |javadoc.version=false
+       |
+       |jlink.launcher=false
+       |jlink.launcher.name=$name
+       |
+       |platform.active=default_platform
+       |
        |javac.classpath=\\
        |  $classpathEntries
+       |
        |run.classpath=\\
        |  $${javac.classpath}:\\
        |  $${build.classes.dir}
+       |
        |""".stripMargin
   }
 
@@ -111,21 +160,20 @@ object ConfigGenerator {
           s"""<root id="${sourceReferenceName(dir)}" />"""
       }
       .mkString("\n")
-    s"""
-       |<?xml version="1.0" encoding="UTF-8"?>
-       |<project xmlns="http://www.netbeans.org/ns/project/1">
-       |<type>org.netbeans.modules.java.j2seproject</type>
-       |<configuration>
-       |<data xmlns="http://www.netbeans.org/ns/j2se-project/3">
-       |<name>$name</name>
-       |<source-roots>
-       |$sourceRootsEntries
-       |</source-roots>
-       |<test-roots/>
-       |</data>
-       |</configuration>
-       |</project>
-       |""".stripMargin
+    s"""|<?xml version="1.0" encoding="UTF-8"?>
+        |<project xmlns="http://www.netbeans.org/ns/project/1">
+        |<type>org.netbeans.modules.java.j2seproject</type>
+        |<configuration>
+        |<data xmlns="http://www.netbeans.org/ns/j2se-project/3">
+        |<name>$name</name>
+        |<source-roots>
+        |$sourceRootsEntries
+        |</source-roots>
+        |<test-roots/>
+        |</data>
+        |</configuration>
+        |</project>
+        |""".stripMargin
   }
 
   @inline private def fileReferenceName(file: File): String = fileReferenceName(file.name)

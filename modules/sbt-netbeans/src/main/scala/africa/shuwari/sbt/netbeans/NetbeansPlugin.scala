@@ -17,6 +17,8 @@
  ****************************************************************/
 package africa.shuwari.sbt.netbeans
 
+import scala.util.Properties
+
 import sbt.*
 import sbt.io.IO
 import sbt.plugins.JvmPlugin
@@ -31,25 +33,41 @@ object NetbeansPlugin extends AutoPlugin {
   val netbeansClean = taskKey[Unit]("Clean generated NetBeans configuration files")
 
   object autoImport {
-    def netbeans: TaskKey[Seq[File]] = NetbeansPlugin.netbeans
-    def netbeansCopyDefault: SettingKey[Boolean] = NetbeansPlugin.netbeansCopyDefault
-    def netbeansClean: TaskKey[Unit] = NetbeansPlugin.netbeansClean
+    val netbeans: TaskKey[Seq[File]] = NetbeansPlugin.netbeans
+    val netbeansCopyDefault: SettingKey[Boolean] = NetbeansPlugin.netbeansCopyDefault
+    val netbeansClean: TaskKey[Unit] = NetbeansPlugin.netbeansClean
   }
 
-  override lazy val projectSettings: Seq[Setting[_]] = Seq(
+  override lazy val projectSettings: Seq[Setting[?]] = Seq(
     netbeans / Keys.target := Keys.target.value / "netbeans",
     netbeansCopyDefault := true,
     netbeans := {
       val log = Keys.streams.value.log
-      val name = Keys.name.value
+      val name = Keys.normalizedName.value
       val baseDir = Keys.baseDirectory.value
       val netbeansTargetDir = (netbeans / Keys.target).value
       val sourceDirs = (Compile / Keys.sourceDirectories).value
       val managedJars = (Compile / Keys.managedClasspath).value.files
       val unmanagedJars = (Compile / Keys.unmanagedJars).value
 
+      def getJavacOption(option: String): String =
+        (Compile / Keys.javacOptions).value
+          .find(_.startsWith(option))
+          .map(_.split(" ")(1))
+          .getOrElse(Properties.javaVersion.split('.').head)
+
+      val javacSourceLevel = getJavacOption("-source")
+      val javacTargetLevel = getJavacOption("-target")
+
       log.info(s"Generating NetBeans configuration for project $name")
-      val generatedFiles = ConfigGenerator.generate(name, baseDir, netbeansTargetDir, sourceDirs, managedJars, unmanagedJars.map(_.data))
+      val generatedFiles = ConfigGenerator.generate(name,
+                                                    javacTargetLevel,
+                                                    javacSourceLevel,
+                                                    baseDir,
+                                                    netbeansTargetDir,
+                                                    sourceDirs,
+                                                    managedJars,
+                                                    unmanagedJars.map(_.data))
 
       if (netbeansCopyDefault.value) {
         val nbProjectDir = baseDir / "nbproject"
