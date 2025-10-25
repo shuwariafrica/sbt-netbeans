@@ -101,10 +101,9 @@ def versionSetting = baseVersionSetting(appendMetadata = false)
 def implementationVersionSetting = baseVersionSetting(appendMetadata = true)
 
 def scriptedSettings: List[Setting[?]] = List(
-  scriptedLaunchOpts := {
+  scriptedLaunchOpts :=
     scriptedLaunchOpts.value ++
-      Seq("-Dplugin.version=" + version.value)
-  },
+      Seq("-Dplugin.version=" + version.value),
   scriptedBufferLog := false
 )
 
